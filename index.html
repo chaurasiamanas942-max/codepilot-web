@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CodePilot — AI Coding Assistant</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="logo">
+      <span class="sparkle">🪄</span>
+      <span class="brand">CodePilot</span>
+    </div>
+    <div class="topbar-right">
+      <button id="settings-btn" class="ghost" title="Settings">⚙️</button>
+      <button id="new-chat-btn" class="ghost">New chat</button>
+    </div>
+  </header>
+
+  <main id="messages" class="messages">
+    <div class="empty" id="empty-state">
+      <div class="empty-icon">🪄</div>
+      <h1>CodePilot</h1>
+      <p>Your AI coding assistant, free for everyone. Powered by Groq.</p>
+      <div class="suggestions">
+        <button class="suggestion" data-prompt="Explain how async/await works in JavaScript with examples">
+          Explain async/await in JS
+        </button>
+        <button class="suggestion" data-prompt="Write a Python function to check if a string is a palindrome">
+          Palindrome function in Python
+        </button>
+        <button class="suggestion" data-prompt="What's the difference between let, const, and var in JavaScript?">
+          let vs const vs var
+        </button>
+        <button class="suggestion" data-prompt="Refactor this code to be more readable: if (x == 1) { return true } else { return false }">
+          Refactor simple code
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <form id="composer" class="composer">
+    <textarea
+      id="input"
+      rows="1"
+      placeholder="Ask CodePilot anything… (Enter to send, Shift+Enter for newline)"
+    ></textarea>
+    <div class="composer-actions">
+      <button type="button" id="stop-btn" class="ghost" hidden>Stop</button>
+      <button type="submit" id="send-btn" class="primary">Send</button>
+    </div>
+  </form>
+
+  <div id="toast" class="toast"></div>
+
+  <!-- Settings modal -->
+  <div id="settings-modal" class="modal" hidden>
+    <div class="modal-content">
+      <h2>Settings</h2>
+      <label>
+        <span>OpenAI API Key (optional)</span>
+        <input
+          type="password"
+          id="api-key-input"
+          placeholder="sk-…  (leave blank for free Groq)"
+          autocomplete="off"
+        />
+        <small>Paste your own OpenAI key for GPT-4o quality. Stored only in your browser. Leave empty to use the free Groq model.</small>
+      </label>
+      <div class="modal-actions">
+        <button type="button" id="settings-cancel" class="ghost">Cancel</button>
+        <button type="button" id="settings-save" class="primary">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
