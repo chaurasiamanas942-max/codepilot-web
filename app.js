@@ -34,9 +34,7 @@
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) return JSON.parse(raw);
-    } catch (e) {
-      // ignore parse errors
-    }
+    } catch {}
     return { apiKey: '' };
   }
 
@@ -47,9 +45,7 @@
   function openSettings() {
     apiKeyInput.value = settings.apiKey || '';
     settingsModal.hidden = false;
-    setTimeout(function () {
-      apiKeyInput.focus();
-    }, 50);
+    setTimeout(() => apiKeyInput.focus(), 50);
   }
 
   function closeSettings() {
@@ -72,9 +68,7 @@
     toastEl.textContent = text;
     toastEl.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () {
-      toastEl.classList.remove('show');
-    }, 1800);
+    toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1800);
   }
 
   function scrollToBottom() {
@@ -88,13 +82,13 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Markdown renderer (dependency-free subset)
+  // Markdown renderer
   // ---------------------------------------------------------------------------
   function inlineFmt(text) {
     const codes = [];
-    let out = text.replace(/`([^`\n]+)`/g, function (_, c) {
+    let out = text.replace(/`([^`\n]+)`/g, (_, c) => {
       codes.push(c);
-      return '\u0000' + (codes.length - 1) + '\u0000';
+      return `\u0000${codes.length - 1}\u0000`;
     });
     out = out.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
     out = out.replace(/(^|[\s(])\*([^*\n]+)\*/g, '$1<em>$2</em>');
@@ -103,9 +97,7 @@
       /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,
       '<a href="$2" target="_blank" rel="noreferrer">$1</a>'
     );
-    out = out.replace(/\u0000(\d+)\u0000/g, function (_, i) {
-      return '<code>' + codes[Number(i)] + '</code>';
-    });
+    out = out.replace(/\u0000(\d+)\u0000/g, (_, i) => `<code>${codes[Number(i)]}</code>`);
     return out;
   }
 
@@ -115,21 +107,20 @@
     let inList = false;
     let para = [];
 
-    function flushPara() {
+    const flushPara = () => {
       if (para.length) {
-        html += '<p>' + inlineFmt(para.join(' ')) + '</p>';
+        html += `<p>${inlineFmt(para.join(' '))}</p>`;
         para = [];
       }
-    }
-    function closeList() {
+    };
+    const closeList = () => {
       if (inList) {
         html += '</ul>';
         inList = false;
       }
-    }
+    };
 
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
+    for (const line of lines) {
       const h = /^(#{1,6})\s+(.*)$/.exec(line);
       const b = /^\s*[-*+]\s+(.*)$/.exec(line);
       const o = /^\s*\d+[.)]\s+(.*)$/.exec(line);
@@ -138,14 +129,14 @@
         flushPara();
         closeList();
         const lvl = h[1].length;
-        html += '<h' + lvl + '>' + inlineFmt(h[2]) + '</h' + lvl + '>';
+        html += `<h${lvl}>${inlineFmt(h[2])}</h${lvl}>`;
       } else if (b || o) {
         flushPara();
         if (!inList) {
           html += '<ul>';
           inList = true;
         }
-        html += '<li>' + inlineFmt((b || o)[1]) + '</li>';
+        html += `<li>${inlineFmt((b || o)[1])}</li>`;
       } else if (/^\s*$/.test(line)) {
         flushPara();
         closeList();
@@ -163,12 +154,12 @@
     return (
       '<div class="code-block">' +
       '<div class="code-head">' +
-      '<span class="code-lang">' + escapeHtml(lang || 'code') + '</span>' +
+      `<span class="code-lang">${escapeHtml(lang || 'code')}</span>` +
       '<span class="code-actions">' +
       '<button data-act="copy">Copy</button>' +
       '</span>' +
       '</div>' +
-      '<pre><code>' + escapeHtml(code) + '</code></pre>' +
+      `<pre><code>${escapeHtml(code)}</code></pre>` +
       '</div>'
     );
   }
@@ -202,9 +193,7 @@
   function addUserBubble(text) {
     const el = document.createElement('div');
     el.className = 'msg user';
-    el.innerHTML = '<div class="bubble">' +
-      escapeHtml(text).replace(/\n/g, '<br>') +
-      '</div>';
+    el.innerHTML = `<div class="bubble">${escapeHtml(text).replace(/\n/g, '<br>')}</div>`;
     messagesEl.appendChild(el);
     scrollToBottom();
   }
@@ -224,22 +213,18 @@
   // ---------------------------------------------------------------------------
   // Streaming via the Vercel proxy (/api/chat)
   // ---------------------------------------------------------------------------
-  async function streamChat(opts) {
+  async function streamChat({ messages, signal, onDelta, openaiKey }) {
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        messages: opts.messages,
-        openaiKey: opts.openaiKey || null
-      }),
-      signal: opts.signal
+      body: JSON.stringify({ messages, openaiKey: openaiKey || null }),
+      signal
     });
 
     if (!res.ok || !res.body) {
-      const detail = await res.text().catch(function () { return ''; });
+      const detail = await res.text().catch(() => '');
       throw new Error(
-        'API error ' + res.status + ' ' + res.statusText +
-        (detail ? '\n' + detail.slice(0, 400) : '')
+        `API error ${res.status} ${res.statusText}${detail ? `\n${detail.slice(0, 400)}` : ''}`
       );
     }
 
@@ -249,27 +234,24 @@
     let full = '';
 
     while (true) {
-      const step = await reader.read();
-      if (step.done) break;
-      buffer += decoder.decode(step.value, { stream: true });
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-      for (let i = 0; i < lines.length; i++) {
-        const t = lines[i].trim();
+      buffer = lines.pop() ?? '';
+      for (const line of lines) {
+        const t = line.trim();
         if (!t || t.startsWith(':') || !t.startsWith('data:')) continue;
         const payload = t.slice(5).trim();
         if (payload === '[DONE]') continue;
         try {
           const json = JSON.parse(payload);
-          const delta = json && json.choices && json.choices[0] &&
-            json.choices[0].delta && json.choices[0].delta.content;
+          const delta = json?.choices?.[0]?.delta?.content;
           if (delta) {
             full += delta;
-            opts.onDelta(delta);
+            onDelta(delta);
           }
-        } catch (e) {
-          // ignore malformed chunks
-        }
+        } catch {}
       }
     }
     return full;
@@ -296,16 +278,16 @@
       'Always put code in fenced blocks with the correct language tag. ' +
       'When asked to change code, return the complete replacement block.';
 
-    const messages = [{ role: 'system', content: systemPrompt }].concat(history);
+    const messages = [{ role: 'system', content: systemPrompt }, ...history];
     let full = '';
     let error = null;
 
     try {
       full = await streamChat({
-        messages: messages,
+        messages,
         signal: abortController.signal,
         openaiKey: settings.apiKey || null,
-        onDelta: function (delta) {
+        onDelta: (delta) => {
           bubble.dataset.raw = (bubble.dataset.raw || '') + delta;
           bubble.innerHTML = renderMarkdown(bubble.dataset.raw);
           scrollToBottom();
@@ -323,7 +305,7 @@
     } finally {
       if (error) {
         bubble.innerHTML =
-          '<div class="error">' + escapeHtml(error) + '</div>' + bubble.innerHTML;
+          `<div class="error">${escapeHtml(error)}</div>` + bubble.innerHTML;
       }
       if (!bubble.innerHTML.trim()) {
         bubble.innerHTML = '<em>No response.</em>';
@@ -334,17 +316,9 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Composer auto-grow
-  // ---------------------------------------------------------------------------
-  function autoGrow() {
-    inputEl.style.height = 'auto';
-    inputEl.style.height = Math.min(inputEl.scrollHeight, 200) + 'px';
-  }
-
-  // ---------------------------------------------------------------------------
   // Events
   // ---------------------------------------------------------------------------
-  composerEl.addEventListener('submit', function (e) {
+  composerEl.addEventListener('submit', (e) => {
     e.preventDefault();
     const text = inputEl.value.trim();
     if (!text) return;
@@ -354,53 +328,54 @@
   });
 
   inputEl.addEventListener('input', autoGrow);
-  inputEl.addEventListener('keydown', function (e) {
+  inputEl.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       composerEl.requestSubmit();
     }
   });
 
-  stopBtn.addEventListener('click', function () {
-    if (abortController) abortController.abort();
-  });
+  function autoGrow() {
+    inputEl.style.height = 'auto';
+    inputEl.style.height = Math.min(inputEl.scrollHeight, 200) + 'px';
+  }
 
-  newChatBtn.addEventListener('click', function () {
-    if (abortController) abortController.abort();
+  stopBtn.addEventListener('click', () => abortController?.abort());
+
+  newChatBtn.addEventListener('click', () => {
+    abortController?.abort();
     location.reload();
   });
 
   settingsBtn.addEventListener('click', openSettings);
   settingsCancel.addEventListener('click', closeSettings);
-  settingsSave.addEventListener('click', function () {
+  settingsSave.addEventListener('click', () => {
     settings.apiKey = apiKeyInput.value.trim();
     saveSettings();
     closeSettings();
     toast(settings.apiKey ? 'OpenAI key saved' : 'Using free Groq model');
   });
 
-  settingsModal.addEventListener('click', function (e) {
+  settingsModal.addEventListener('click', (e) => {
     if (e.target === settingsModal) closeSettings();
   });
 
-  document.addEventListener('click', function (e) {
+  document.addEventListener('click', (e) => {
     const s = e.target.closest('.suggestion');
     if (!s) return;
     inputEl.value = s.dataset.prompt || '';
     composerEl.requestSubmit();
   });
 
-  messagesEl.addEventListener('click', function (e) {
+  messagesEl.addEventListener('click', (e) => {
     const btn = e.target.closest('button[data-act="copy"]');
     if (!btn) return;
-    const block = btn.closest('.code-block');
-    const codeEl = block ? block.querySelector('code') : null;
-    const code = codeEl ? codeEl.textContent : '';
+    const code = btn.closest('.code-block')?.querySelector('code')?.textContent || '';
     if (!code) return;
     navigator.clipboard.writeText(code);
     const old = btn.textContent;
     btn.textContent = 'Copied';
-    setTimeout(function () { btn.textContent = old; }, 1200);
+    setTimeout(() => (btn.textContent = old), 1200);
     toast('Copied to clipboard');
   });
 
