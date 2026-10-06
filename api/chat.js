@@ -22,7 +22,7 @@ export default async function handler(req, res) {
         name: 'Groq',
         url: 'https://api.groq.com/openai/v1/chat/completions',
         key: process.env.GROQ_API_KEY,
-        model: model || 'llama-3.3-70b-versatile',
+        model: model || 'openai/gpt-oss-120b',
       };
 
   try {
